@@ -1,0 +1,282 @@
+
+==================== JCode Agent 系统完整设计说明 ====================
+
+一、系统核心定位
+JCode Agent系统是面向OpenCode体系的代码级闭环子系统，核心目标是实现「业务任务→代码任务→进化优化」的全流程管控，所有Agent遵循「显性化、可审计、可固化、可回滚」的核心宪法原则，为OpenCode提供代码级风险防御、进化管控能力。 
+
+同时需要在opencode中结合Oh-my-opencode, superpowers, evolver/evomap能力，并参考引进everything clawcode中独有的以下功能：
+1. Context Lock（上下文锁定）
+ 
+- 作用：记住你的项目结构、关键文件、配置、规则，不会忘
+- OMO 没有
+- 对你价值：不会每次都重新问“项目结构是什么”，长期记忆稳得一批
+ 
+
+ 
+2. Rule Engine + Soft Hooks（规则引擎 + 轻量钩子）
+ 
+- 作用：你写一条规则，全局生效
+	比如：
+	 变量必须用驼峰
+	 必须加注释
+	 禁止使用 eval
+- OMO 没有这种全局规则系统
+- 对你价值：完美配合你的 h‑Agent 治理，真正做到全域可控
+  
+3. Incremental Build（增量构建）
+ 
+- 作用：只改你要改的部分，不重写整个文件，不乱动你原有代码
+- OMO / OpenCode 默认经常全量覆盖
+- 对你价值：代码更安全、不乱改、不破坏原有逻辑
+ 
+ 
+4. Audit Log（审计日志）
+ 
+- 作用：每一步改了什么、为什么改、改哪一行，全部记录
+- OMO 没有
+- 对你价值：完全可追溯，和你现在做的进化显性化天然匹配
+
+二、系统整体架构
+1. 目录结构（可直接复刻）
+jcode_project/          # 项目根目录
+├── config.ini          # 全局配置（OpenCode路径/Agent开关/API端口等）
+├── requirements.txt    # 依赖清单
+├── jcode_start.py      # 一键启动入口
+├── core/               # 核心引擎层（全局能力）
+│   ├── __init__.py     # 模块导出
+│   ├── jcode_core.py   # 基础能力（进化/面板/日志/记忆/宪法管控）
+│   └── jcode_agents.py # Agent管理（加载/调度/任务执行）
+├── agents/             # Agent业务层（6大核心Agent）
+│   ├── __init__.py     # 模块导出
+│   ├── jcode.Master.py # 总调度/进化固化
+│   ├── jcode.Scanner.py # 需求扫描/风险识别
+│   ├── jcode.Planner.py # 任务规划/记忆复用
+│   ├── jcode.Builder.py # 代码构建/防御注入
+│   ├── jcode.Reviewer.py # 代码评审/合规检查
+│   └── jcode.Tester.py # 测试用例/进化建议
+├── api/                # API服务层（对外接口）
+│   ├── __init__.py     # 模块导出
+│   └── jcode_api.py    # REST API服务
+├── cli/                # 命令行工具层
+│   ├── __init__.py     # 模块导出
+│   └── jcode_cli.py    # CLI命令工具
+└── docs/               # 文档层
+    ├── jcode_CONSTITUTION.md # 全局宪法
+    └── jcode_agents_spec.md  # Agent规格说明
+
+2. 核心依赖（requirements.txt）
+requests>=2.31.0
+pyyaml>=6.0
+flask>=2.3.3
+colorama>=0.4.6
+
+三、核心模块设计规范
+1. 全局配置（config.ini）
+[global]
+opencode_root = /path/to/your/opencode  # OpenCode根目录（必填）
+python_version = 3.8+
+log_level = INFO
+
+[jcode]
+namespace = jcode
+confirm_code = opencode_admin_123       # 进化固化确认码
+api_port = 8080                         # API服务端口
+panel_format = text                     # 状态面板格式（text/json）
+
+[agents]
+master_switch = on
+scanner_switch = on
+planner_switch = on
+builder_switch = on
+reviewer_switch = on
+tester_switch = on
+
+2. 核心引擎层（core/）
+(1) jcode_core.py：基础能力封装
+核心类设计：
+- JcodeEvolutionManager：进化管控（接收/固化进化建议）
+- JcodeStatusPanel：状态面板（展示/更新系统状态）
+- JcodeAuditLog：审计日志（所有操作留痕）
+- JcodeMemory：记忆库（保存/加载任务记忆）
+- JcodeConstitutionManager：宪法管控（校验Agent宪法遵守情况）
+
+设计原则：
+- 所有目录自动初始化（rules/memory/audit/evolution）
+- 数据结构化存储（JSON/MD），可追溯
+- 所有操作留痕，审计日志包含时间/操作/状态/详情
+
+(2) jcode_agents.py：Agent管理
+核心能力：
+- 动态加载所有Agent（支持热更新）
+- 统一调度Agent执行任务
+- 任务执行前自动校验Agent状态
+- Tester Agent执行后自动生成进化建议
+
+关键方法：
+- _load_all_agents()：动态导入6个Agent并实例化
+- run_agent_task()：统一执行Agent任务，自动捕获异常
+- list_agents_status()：返回所有Agent加载状态
+
+3. Agent业务层（agents/）
+(1) Agent通用设计规范（所有Agent必须遵循）
+基础属性（必选）：
+- self.name = "jcode.XXX"：Agent名称（唯一标识）
+- self.role = "核心职责描述"：角色定位
+- self.constitution_rules = []：专属宪法规则（核心）
+
+核心方法（必选）：
+- execute_task(self, task_data: Dict) -> Dict：执行任务（先校验宪法，再执行业务）
+- _check_constitution(self, task_data: Dict) -> Dict：宪法校验（违反则终止任务）
+
+(2) 6大Agent核心设计
+┌─────────────┬────────────────────────┬─────────────────────────────────────┐
+│ Agent名称   │ 核心职责               │ 关键输出                             │
+├─────────────┼────────────────────────┼─────────────────────────────────────┤
+│ Master      │ 总调度/进化固化        │ 进化固化结果、状态面板、Agent调度结果│
+│ Scanner     │ 需求扫描/风险识别      │ 风险清单、风险等级、修复建议         │
+│ Planner     │ 任务规划/记忆复用      │ 原子化任务步骤、记忆复用情况         │
+│ Builder     │ 代码构建/防御注入      │ 带防御的代码、防御规则应用说明       │
+│ Reviewer    │ 代码评审/合规检查      │ 评审结果、问题清单、修改建议         │
+│ Tester      │ 测试用例/进化建议      │ 测试用例、测试结果、进化建议         │
+└─────────────┴────────────────────────┴─────────────────────────────────────┘
+
+(3) Agent宪法规则体系（核心）
+- Master Agent宪法（M001-M005）：
+  1. 所有进化固化操作必须验证管理员身份+确认码，无豁免
+  2. 进化固化前必须生成结构化规则文档，不可黑盒固化
+  3. 状态面板必须实时同步OpenCode，数据延迟≤10秒
+  4. Agent调度必须记录完整审计日志，包含调度方/被调度方/任务内容
+  5. 进化操作必须区分「未固化/已固化」状态，不可混淆
+
+- Scanner Agent宪法（S001-S005）：
+  1. 风险识别必须覆盖「语法/执行/合规/权限」四类核心风险，不可遗漏
+  2. 高风险项（如敏感信息/高危函数）必须标记等级并给出修复建议
+  3. 扫描结果必须结构化输出，包含风险类型/等级/详情/建议
+  4. 扫描过程不可修改原始内容，仅可读不可写
+  5. 扫描日志必须包含扫描对象/时间/风险数量/高风险项
+
+- Planner Agent宪法（P001-P005）：
+  1. 任务拆解必须原子化，每个步骤仅包含单一动作，不可合并
+  2. 规划必须复用历史记忆（如有），优先使用同类场景的成功经验
+  3. 规划结果必须包含步骤/责任人/耗时/验证标准，不可模糊
+  4. 不同场景（如代码编写/测试）必须使用差异化的拆解逻辑
+  5. 规划记忆必须保存，包含业务任务/拆解步骤/场景类型/复用次数
+
+- Builder Agent宪法（B001-B005）：
+  1. 代码构建必须注入「输入/执行/输出」三类最小防御逻辑，不可省略
+  2. 防御逻辑必须适配对应语言特性，不可跨语言套用
+  3. 构建后的代码必须可运行，不可引入语法错误
+  4. 构建过程必须记录防御规则应用情况，包含规则类型/代码位置/作用
+  5. 构建结果必须包含原始代码/防御代码/构建说明，可追溯
+
+- Reviewer Agent宪法（R001-R005）：
+  1. 评审必须覆盖「代码规范/防御逻辑/合规要求/性能要求」四类核心规则
+  2. 评审不通过项必须给出具体的修改建议，不可仅说「不符合规范」
+  3. 评审结果必须明确「通过/不通过」，并给出量化评分（如通过率）
+  4. 评审过程不可修改代码，仅可标记问题和建议
+  5. 评审日志必须包含评审对象/时间/问题数量/核心问题
+
+- Tester Agent宪法（T001-T005）：
+  1. 测试用例必须覆盖「正常/边界/异常/性能/安全」五类场景，不可遗漏
+  2. 测试结果必须生成进化建议，包含优化方向/风险等级/推荐等级
+  3. 测试用例必须可执行，包含输入/预期输出/执行步骤
+  4. 测试过程不可修改被测代码，仅可调用和验证
+  5. 测试报告必须包含用例数/通过数/失败数/进化建议
+
+4. 接口层（api/ + cli/）
+(1) API服务（jcode_api.py）
+基于Flask实现REST API，核心接口：
+- POST /jcode/agent/run：运行Agent任务
+- POST /jcode/evolution/receive：接收进化建议
+- POST /jcode/evolution/solidify：固化进化建议
+- GET /jcode/status/panel：获取状态面板
+- GET /jcode/agents/status：获取Agent状态
+
+(2) CLI工具（jcode_cli.py）
+基于argparse实现，核心命令：
+- python cli/jcode_cli.py run-agent：运行Agent任务
+- python cli/jcode_cli.py receive-evolution：接收进化建议
+- python cli/jcode_cli.py solidify-evolution：固化进化建议
+- python cli/jcode_cli.py show-panel：查看状态面板
+
+5. 启动入口（jcode_start.py）
+一键加载所有核心模块，展示状态面板，输出常用命令。
+
+四、系统部署与使用流程
+1. 部署步骤（零依赖）
+(1) 创建项目目录：mkdir -p jcode_project/{core,agents,api,cli,docs}
+(2) 按设计说明创建所有文件（复制对应代码）
+(3) 修改config.ini中的opencode_root为实际路径
+(4) 安装依赖：pip install -r requirements.txt
+(5) 启动系统：python jcode_start.py
+
+2. 核心使用场景（完整代码开发闭环）
+from core.jcode_agents import JcodeAgentManager
+agent_manager = JcodeAgentManager()
+
+# 1. Scanner扫描需求
+scan_result = agent_manager.run_agent_task(
+    "jcode.Scanner",
+    {"content": "编写Python接口，接收用户参数并返回结果", "scene": "Python接口开发"}
+)
+
+# 2. Planner规划任务
+plan_result = agent_manager.run_agent_task(
+    "jcode.Planner",
+    {"business_task": "编写Python接口", "scene_type": "Python接口开发"}
+)
+
+# 3. Builder构建代码（注入防御）
+build_result = agent_manager.run_agent_task(
+    "jcode.Builder",
+    {"code_template": "def api_handler(params): return params", "scene": "Python接口开发", "language": "python"}
+)
+
+# 4. Reviewer评审代码
+review_result = agent_manager.run_agent_task(
+    "jcode.Reviewer",
+    {"code": build_result["builded_code"], "language": "python"}
+)
+
+# 5. Tester测试代码（自动生成进化建议）
+test_result = agent_manager.run_agent_task(
+    "jcode.Tester",
+    {"code": build_result["builded_code"], "scene": "Python接口开发", "language": "python"}
+)
+
+# 6. Master固化进化建议
+solidify_result = agent_manager.run_agent_task(
+    "jcode.Master",
+    {
+        "task_type": "solidify_evolution",
+        "evolution_id": test_result["evolution_result"]["evolution_id"],
+        "user_role": "opencode管理员",
+        "confirm_code": "opencode_admin_123"
+    }
+)
+
+五、系统扩展规范
+1. 新增Agent规范
+(1) 在agents/目录下创建jcode.XXX.py文件
+(2) 遵循通用设计规范（基础属性+execute_task+_check_constitution）
+(3) 在core/jcode_agents.py的agent_names列表中添加新Agent名称
+(4) 定义专属宪法规则，确保与全局宪法兼容
+
+2. 扩展防御规则
+(1) 在Builder Agent的_inject_defense方法中新增防御逻辑
+(2) 更新Builder的宪法规则（B001）
+(3) 在Reviewer Agent的评审规则中添加新防御的校验逻辑
+
+3. 适配新语言
+(1) 在Builder Agent中新增对应语言的防御逻辑
+(2) 在Scanner/Reviewer/Tester Agent中添加对应语言的扫描/评审/测试规则
+(3) 更新各Agent的宪法规则，确保适配性
+
+六、核心设计原则回顾
+1. 宪法至上：所有Agent执行任务前必须校验宪法规则，违反则终止
+2. 显性化：所有进化/操作/结果必须结构化输出，可审计、可追溯
+3. 最小防御：代码构建必须注入基础防御逻辑，不可省略
+4. 自动化：Tester执行后自动生成进化建议，Master统一固化
+5. 兼容性：适配OpenCode体系，数据实时同步，接口统一
+
+==================== 设计说明结束 ====================

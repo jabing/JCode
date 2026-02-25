@@ -1,0 +1,78 @@
+# JCode v3.0 Configuration - 4-Level Switch Mechanism
+# ==================================================
+# Level 1: Global Switch (enabled/disabled)
+# Level 2: Mode Switch (full/light/safe/fast/custom)
+# Level 3: Agent-Level Switch (per-agent enablement)
+# Level 4: Rule-Level Switch (per-rule configuration)
+
+# Project metadata
+Project: "JCode Agent System"
+Version: "3.0"
+
+# Level 1: Global Switch
+# Controls whether JCode governance layer is enabled
+enabled: true
+
+# Level 2: Mode Switch
+# Predefined governance intensity levels
+# Options: full, light, safe, fast, custom
+mode: "full"
+
+# Level 3: Agent-Level Switch
+# Per-agent enablement configuration
+agents:
+  analyst: true        # 问题分析（司马迁）
+  planner: true        # 任务规划（商鞅）
+  implementer: true    # 代码实现（鲁班）
+  reviewer: true       # 合规审查（包拯）
+  tester: true         # 证据验证（张衡）
+  conductor: true     # 终局裁决（韩非子）
+
+# Level 4: Rule-Level Switch
+# Per-rule configuration for constitution and governance rules
+rules:
+  # Constitutional rules (R001-R004)
+  constitution:
+    R001_no_skip_review: true           # 禁止跳过审查
+    R002_require_test: true             # 要求测试证据
+    R003_nfr_required: true             # 要求非功能性需求
+    R004_human_intervention_on_error: true  # 错误时强制介入
+
+  # Governance rules (G001-G003)
+  governance:
+    G001_audit_logging: true            # 审计日志
+    G002_iteration_tracking: true       # 迭代追踪
+    G003_context_lock_required: true    # 上下文锁定
+
+# Iteration Control
+max_iterations: 5
+
+# Forced Enablement Scenarios
+# JCode will be forcing enabled regardless of global switch
+forced_enable:
+  file_patterns:
+    - "**/config/**"           # 配置文件目录
+    - "**/*secret*"            # 包含 "secret" 的文件
+    - "**/*.env"               # 环境变量文件
+    - "**/secrets.yaml"        # 密钥配置
+    - "**/credentials.json"    # 凭证文件
+  operations:
+    - delete_file              # 删除文件
+    - modify_permission        # 修改权限
+    - database_migration       # 数据库迁移
+    - deploy_production        # 生产部署
+
+# Audit Configuration
+audit:
+  log_switch_changes: true      # 记录开关变更
+  log_forced_enable: true       # 记录强制启用
+  retention_days: 90            # 日志保留天数
+
+# Priority Resolution (for advanced configurations)
+# Order: CLI > Project > User > OMO > Default
+priority:
+  - session_command      # 会话内命令 (highest)
+  - project_config       # 项目配置
+  - user_config          # 用户配置
+  - omo_config           # OMO 配置
+  - default              # 默认值 (lowest)
