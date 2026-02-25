@@ -13,7 +13,6 @@ function Write-Info { Write-Host "[INFO] $args" -ForegroundColor Cyan }
 function Write-Err { Write-Host "[ERROR] $_" -ForegroundColor Red }
 
 $GlobalOpenCodeDir = "$env:USERPROFILE\.opencode"
-$JCodeMcpServer = "$JCodePath\mcp\jcode_server.py"
 
 if ($Uninstall) {
     Write-Info "Uninstalling JCode..."
@@ -29,41 +28,65 @@ if ($Uninstall) {
 
 Write-Info "Installing JCode to: $JCodePath"
 
-# Create global .opencode directory
+# Create directories
 New-Item -ItemType Directory -Path "$GlobalOpenCodeDir\skills\jcode-governance" -Force | Out-Null
 Write-Success "Created .opencode directory"
 
-# Create opencode.jsonc using Python for proper JSON escaping
-$PythonScript = @"
-import json
-import os
-
-config_path = os.path.expanduser('~/.opencode/opencode.jsonc')
-
-config = {
-    '\$schema': 'https://opencode.ai/config.json',
-    'mcp': {
-        'jcode': {
-            'command': 'python',
-            'args': [r'$JCodeMcpServer'.replace('/', os.sep)],
-            'enabled': True
-        }
+# Create opencode.jsonc
+$ConfigContent = @"
+{
+  "`$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "opencode": {
+      "options": {}
     }
+  },
+  "mcp": {},
+  "tools": {
+    "jcode": true
+  },
+  "skills": {
+    "jcode-governance": true
+  }
 }
-
-content = json.dumps(config, indent=2)
-with open(config_path, 'w', encoding='utf-8', newline='\n') as f:
-    f.write(content)
-print('OK')
 "@
+$ConfigContent | Out-File -FilePath "$GlobalOpenCodeDir\opencode.jsonc" -Encoding utf8NoBOM
+Write-Success "Created opencode.jsonc"
 
-$Result = python -c $PythonScript 2>&1
-if ($Result -eq "OK") {
-    Write-Success "Created opencode.jsonc (valid JSON)"
-} else {
-    Write-Err "Failed to create config: $Result"
-    exit 1
-}
+# Create JCode skill
+$SkillContent = @"
+---
+name: jcode-governance
+description: "JCode 代码治理层 - 6个 Agent 工作流验证。触发词: 'jcode', 'code governance', '代码治理', 'governance check', 'code review', 'code analysis'"
+---
+
+# JCode Governance Layer
+
+<role>
+You are a JCode governance orchestrator. JCode provides 6 agent tools for code governance:
+- jcode.analyze - 问题分析验证
+- jcode.plan - 任务规划验证  
+- jcode.implement - 代码实现验证
+- jcode.review - 代码审查 (APPROVED/REJECTED)
+- jcode.test - 测试验证 (PASSED/FAILED)
+- jcode.conductor - 终局裁决
+
+When governance is enabled, use these tools to validate code changes before proceeding.
+</role>
+
+## TRIGGERS
+- "jcode"
+- "code governance"
+- "代码治理"
+- "governance check"
+
+## USAGE
+Invoke JCode tools via:
+- CLI: python $JCodePath\jcode_start.py cli {command}
+- API: http://localhost:8000/api/v1/jcode/{agent}
+"@
+$SkillContent | Out-File -FilePath "$GlobalOpenCodeDir\skills\jcode-governance\SKILL.md" -Encoding utf8NoBOM
+Write-Success "Created JCode skill"
 
 # Set environment variables
 [Environment]::SetEnvironmentVariable("JCODE_PATH", $JCodePath, "User")
@@ -81,6 +104,8 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "JCode Installed Successfully!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Config file: $GlobalOpenCodeDir\opencode.jsonc" -ForegroundColor Cyan
-Write-Host "Restart your terminal, then run 'opencode'" -ForegroundColor Cyan
-Write-Host "JCode tools will be available automatically" -ForegroundColor Cyan
+Write-Host "Skill: jcode-governance" -ForegroundColor Cyan
+Write-Host "Triggers: 'jcode', 'code governance', '代码治理'" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Restart your terminal, then run 'opencode'" -ForegroundColor White
+Write-Host "Use: '请使用 jcode 分析这个问题'" -ForegroundColor White
