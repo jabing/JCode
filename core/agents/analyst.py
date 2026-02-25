@@ -1,96 +1,106 @@
 """
-Analyst Agent - Problem Analysis (问题分析 - 司马迁)
+Analyst Agent - Governance Layer (问题分析治理 - 司马迁)
 
-Analyzes problems, identifies root causes, and proposes solutions.
+Validates analysis input/output and applies governance rules.
+Does NOT generate content - only validates and governs.
 """
 
 from typing import Dict, Any, Optional
 from core.base_agent import BaseAgent, AgentResult
-from core.llm_client import LLMClient, LLMConfig
-
 
 class AnalystAgent(BaseAgent):
     """
-    Analyst Agent - Problem reconnaissance officer (司马迁)
+    Analyst Governance Agent (司马迁)
 
-    Responsibilities:
-    - Analyze user requirements
-    - Identify root causes
-    - Assess risks
-    - Propose solution approaches
+    Responsibilities (Governance only):
+    - Validate problem statement format
+    - Check verifiability classification
+    - Apply constitutional rules
+    - Record audit log
     """
 
     name = "analyst"
     section = "[ANALYSIS]"
-    description = "Problem reconnaissance officer - analyzes requirements and identifies solutions"
+    description = "Problem analysis governance - validates input and applies rules"
 
-    SYSTEM_PROMPT = """你是 JCode 的分析师 Agent (司马迁)。
+    def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
+        """Validate input format."""
+        if not input_data:
+            return "Input data is required"
 
-你的职责是：
-1. 分析用户需求和问题描述
-2. 识别问题的根本原因
-3. 评估潜在风险
-4. 提出解决方案建议
+        # Check for problem_statement or analysis result
+        has_statement = "problem_statement" in input_data
+        has_analysis = "analysis" in input_data
 
-输出格式：
-[ANALYSIS]
-## 问题理解
-(你对问题的理解)
+        if not has_statement and not has_analysis:
+            return "Input must contain 'problem_statement' or 'analysis'"
 
-## 根本原因
-(识别的根本原因)
-
-## 风险评估
-(潜在风险和影响)
-
-## 建议方案
-(推荐的解决方法)
-
-## 需要澄清的问题
-(如果有不明确的地方)"""
-
-    def get_system_prompt(self) -> str:
-        return self.SYSTEM_PROMPT
+        return None
 
     def _run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute analysis."""
-        problem_statement = input_data.get("problem_statement", "")
-        context = input_data.get("context", {})
-
-        # Build prompt
-        user_message = f"请分析以下问题：\n\n{problem_statement}"
-
-        if context:
-            user_message += f"\n\n上下文信息：\n{self._format_context(context)}"
-
-        # Get analysis from LLM
-        messages = [
-            {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": user_message}
-        ]
-
-        analysis = self.chat(messages)
-
-        return {
-            "analysis": analysis,
-            "problem_statement": problem_statement,
-            "context": context
+        """Execute governance logic."""
+        result = {
+            "section": self.section,
+            "verifiability": "HARD",  # Default
+            "checks": [],
+            "warnings": [],
+            "action": "CONTINUE"
         }
 
-    def _format_context(self, context: Dict[str, Any]) -> str:
-        """Format context dictionary as string."""
-        lines = []
-        for key, value in context.items():
-            lines.append(f"- {key}: {value}")
-        return "\n".join(lines)
+        # Check 1: Problem statement exists
+        problem = input_data.get("problem_statement", "")
+        if problem:
+            result["checks"].append({
+                "name": "problem_statement_exists",
+                "status": "PASS"
+            })
+        else:
+            result["checks"].append({
+                "name": "problem_statement_exists",
+                "status": "SKIP",
+                "reason": "Using provided analysis"
+            })
+
+        # Check 2: Analysis result format (if provided)
+        analysis = input_data.get("analysis", "")
+        if analysis:
+            result["checks"].append({
+                "name": "analysis_format",
+                "status": "PASS"
+            })
+            # Check for required sections
+            required_sections = ["[ANALYSIS]", "## 问题理解", "## 风险"]
+            missing = [s for s in required_sections if s not in analysis]
+            if missing:
+                result["warnings"].append(f"Missing sections: {missing}")
+
+        # Check 3: Verifiability assessment
+        verifiability = input_data.get("verifiability", "HARD")
+        if verifiability not in ["HARD", "SOFT", "NON-VERIFIABLE"]:
+            result["warnings"].append(f"Unknown verifiability: {verifiability}")
+            verifiability = "SOFT"
+        result["verifiability"] = verifiability
+
+        # Check 4: NON-VERIFIABLE triggers human intervention
+        if verifiability == "NON-VERIFIABLE":
+            result["action"] = "HUMAN_INTERVENTION"
+            result["warnings"].append("Problem is non-verifiable - human intervention required")
+
+        # Check 5: NFRs present (if provided)
+        nfrs = input_data.get("nfrs", {})
+        if nfrs:
+            result["checks"].append({
+                "name": "nfrs_present",
+                "status": "PASS",
+                "count": len(nfrs)
+            })
+
+        return result
 
 
-def create_analyst_agent(
-    project_root: str = ".",
-    llm_client: Optional[LLMClient] = None
-) -> AnalystAgent:
+def create_analyst_agent(project_root: str = ".") -> AnalystAgent:
     """Create AnalystAgent instance."""
-    return AnalystAgent(project_root=project_root, llm_client=llm_client)
+    return AnalystAgent(project_root=project_root)
 
 
 __all__ = ["AnalystAgent", "create_analyst_agent"]

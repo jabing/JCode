@@ -1,91 +1,81 @@
 """
-Conductor Agent - Final Arbitration (终局裁决 - 韩非子)
+Conductor Agent - Governance Layer (终局裁决治理 - 韩非子)
 
-Makes final decisions and coordinates workflow.
+Makes final arbitration decisions based on all phase outputs.
+Applies constitutional rules and determines workflow termination.
 """
 
 from typing import Dict, Any, Optional
 from core.base_agent import BaseAgent
-from core.llm_client import LLMClient
 
 
 class ConductorAgent(BaseAgent):
-    """Conductor Agent - Final arbiter (韩非子)"""
+    """Conductor Governance Agent (韩非子) - Final arbitration"""
 
     name = "conductor"
     section = "[FINAL]"
-    description = "Final arbiter - makes final decisions and coordinates workflow"
+    description = "Final arbitration governance - makes workflow termination decisions"
 
-    SYSTEM_PROMPT = """你是 JCode 的调度员 Agent (韩非子)。
-
-你的职责是：
-1. 审查所有 Agent 的输出
-2. 做出最终决策
-3. 协调工作流程
-4. 处理冲突情况
-
-输出格式：
-[FINAL]
-## 决策结果
-SUCCESS / NEEDS_REVISION / FAILED
-
-## 工作流摘要
-(整个过程回顾)
-
-## 最终结论
-(最终判断)
-
-## 后续行动
-(如果有需要进一步处理的)
-
-## 提交建议
-(是否建议提交代码)"""
-
-    def get_system_prompt(self) -> str:
-        return self.SYSTEM_PROMPT
+    def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
+        if not input_data:
+            return "Input data is required"
+        return None
 
     def _run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        analysis = input_data.get("analysis", "")
-        tasks = input_data.get("tasks", "")
-        implementation = input_data.get("implementation", "")
-        review = input_data.get("review", "")
-        test_output = input_data.get("test_output", "")
-
-        user_message = f"""审查完整工作流并做出最终决策：
-
-## 分析结果
-{analysis}
-
-## 任务计划
-{tasks}
-
-## 实现
-{implementation}
-
-## 审查结果
-{review}
-
-## 测试结果
-{test_output}
-
-请做出最终决策。"""
-
-        messages = [
-            {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": user_message}
-        ]
-
-        final_decision = self.chat(messages)
-        success = "SUCCESS" in final_decision.upper()
-
-        return {
-            "final_decision": final_decision,
-            "success": success
+        result = {
+            "section": self.section,
+            "verdict": "SUCCESS",
+            "checks": [],
+            "workflow_summary": {},
+            "action": "COMPLETE"
         }
 
+        # Collect all phase results
+        analysis = input_data.get("analysis", {})
+        tasks = input_data.get("tasks", {})
+        implementation = input_data.get("implementation", {})
+        review = input_data.get("review", {})
+        test = input_data.get("test", {})
 
-def create_conductor_agent(project_root: str = ".", llm_client: Optional[LLMClient] = None) -> ConductorAgent:
-    return ConductorAgent(project_root=project_root, llm_client=llm_client)
+        # Check 1: All phases present
+        phases = {"analysis": analysis, "tasks": tasks, "implementation": implementation, "review": review, "test": test}
+        for phase_name, phase_data in phases.items():
+            if phase_data:
+                result["checks"].append({"name": f"{phase_name}_present", "status": "PASS"})
+            else:
+                result["checks"].append({"name": f"{phase_name}_present", "status": "MISSING"})
+
+        # Check 2: Review verdict
+        review_verdict = review.get("verdict", "APPROVED") if isinstance(review, dict) else "APPROVED"
+        if review_verdict == "REJECTED":
+            result["verdict"] = "NEEDS_REVISION"
+            result["action"] = "RETRY"
+            result["workflow_summary"]["review_failed"] = True
+
+        # Check 3: Test verdict
+        test_verdict = test.get("verdict", "PASSED") if isinstance(test, dict) else "PASSED"
+        if test_verdict == "FAILED":
+            result["verdict"] = "NEEDS_REVISION"
+            result["action"] = "RETRY"
+            result["workflow_summary"]["test_failed"] = True
+
+        # Check 4: Any STOP actions from previous phases
+        for phase_name, phase_data in phases.items():
+            if isinstance(phase_data, dict) and phase_data.get("action") == "STOP":
+                result["verdict"] = "FAILED"
+                result["action"] = "STOP"
+                result["workflow_summary"]["stop_from"] = phase_name
+                break
+
+        # Final decision
+        result["workflow_summary"]["all_phases"] = len([p for p in phases.values() if p])
+        result["workflow_summary"]["ready_to_commit"] = result["verdict"] == "SUCCESS"
+
+        return result
+
+
+def create_conductor_agent(project_root: str = ".") -> ConductorAgent:
+    return ConductorAgent(project_root=project_root)
 
 
 __all__ = ["ConductorAgent", "create_conductor_agent"]

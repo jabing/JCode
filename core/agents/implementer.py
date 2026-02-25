@@ -1,68 +1,71 @@
-"""
-Implementer Agent - Code Implementation (代码实现 - 鲁班)
+"""Implementer Agent - Governance Layer (代码实现治理 - 鲁班)
 
-Implements code based on task specifications.
+Validates code implementation and applies governance rules.
 """
 
 from typing import Dict, Any, Optional
 from core.base_agent import BaseAgent
-from core.llm_client import LLMClient
 
 
 class ImplementerAgent(BaseAgent):
-    """Implementer Agent - Execution craftsman (鲁班)"""
+    """Implementer Governance Agent (鲁班)"""
 
     name = "implementer"
     section = "[IMPLEMENTATION]"
-    description = "Execution craftsman - implements code based on specifications"
+    description = "Code implementation governance - validates code changes"
 
-    SYSTEM_PROMPT = """你是 JCode 的实现者 Agent (鲁班)。
-
-你的职责是：
-1. 根据任务计划实现代码
-2. 遵循项目代码规范
-3. 编写清晰、可维护的代码
-4. 处理边界情况和错误
-
-输出格式：
-[IMPLEMENTATION]
-## 实现内容
-(代码实现)
-
-## 修改的文件
-- 文件路径: (修改内容摘要)
-
-## 注意事项
-(需要特别注意的地方)"""
-
-    def get_system_prompt(self) -> str:
-        return self.SYSTEM_PROMPT
+    def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
+        if not input_data:
+            return "Input data is required"
+        return None
 
     def _run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        tasks = input_data.get("tasks", "")
-        task_name = input_data.get("task_name", "")
-        existing_code = input_data.get("existing_code", "")
-
-        user_message = f"实现以下任务：\n\n任务：{task_name}\n\n任务计划：\n{tasks}"
-
-        if existing_code:
-            user_message += f"\n\n现有代码：\n{existing_code}"
-
-        messages = [
-            {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": user_message}
-        ]
-
-        implementation = self.chat(messages)
-
-        return {
-            "implementation": implementation,
-            "task_name": task_name
+        result = {
+            "section": self.section,
+            "checks": [],
+            "warnings": [],
+            "action": "CONTINUE"
         }
 
+        implementation = input_data.get("implementation", "")
+        files_changed = input_data.get("files_changed", [])
 
-def create_implementer_agent(project_root: str = ".", llm_client: Optional[LLMClient] = None) -> ImplementerAgent:
-    return ImplementerAgent(project_root=project_root, llm_client=llm_client)
+        # Check 1: Implementation exists
+        if implementation:
+            result["checks"].append({"name": "implementation_exists", "status": "PASS"})
+        else:
+            result["warnings"].append("No implementation provided")
+
+        # Check 2: Files changed list
+        if files_changed:
+            result["checks"].append({
+                "name": "files_changed",
+                "status": "PASS",
+                "count": len(files_changed)
+            })
+
+        # Check 3: No forbidden patterns
+        forbidden = ["password", "secret", "api_key", "token"]
+        found_forbidden = []
+        if implementation:
+            impl_lower = implementation.lower()
+            for pattern in forbidden:
+                if pattern in impl_lower:
+                    found_forbidden.append(pattern)
+
+        if found_forbidden:
+            result["warnings"].append(f"Potential sensitive data: {found_forbidden}")
+            result["action"] = "HUMAN_INTERVENTION"
+
+        result["checks"].append({
+            "name": "sensitive_data_check",
+            "status": "PASS" if not found_forbidden else "WARNING"
+        })
+
+        return result
 
 
-__all__ = ["ImplementerAgent", "create_implementer_agent"]
+def create_implementer_agent(project_root: str = ".") -> ImplementerAgent:
+    return ImplementerAgent(project_root=project_root)
+
+

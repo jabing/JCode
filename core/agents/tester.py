@@ -1,79 +1,66 @@
 """
-Tester Agent - Testing & Validation (证据验证 - 张衡)
+Tester Agent - Governance Layer (证据验证治理 - 张衡)
 
-Validates implementations through testing.
+Validates test results and applies constitutional rules.
+Returns PASSED or FAILED decision.
 """
 
 from typing import Dict, Any, Optional
 from core.base_agent import BaseAgent
-from core.llm_client import LLMClient
 
 
 class TesterAgent(BaseAgent):
-    """Tester Agent - Evidence officer (张衡)"""
+    """Tester Governance Agent (张衡) - Evidence validation only"""
 
     name = "tester"
     section = "[TEST]"
-    description = "Evidence officer - validates implementations through testing"
+    description = "Test validation governance - validates test evidence"
 
-    SYSTEM_PROMPT = """你是 JCode 的测试员 Agent (张衡)。
-
-你的职责是：
-1. 设计测试用例
-2. 验证功能正确性
-3. 检查边界情况
-4. 做出 PASSED 或 FAILED 决定
-
-输出格式：
-[TEST]
-## 测试结果
-PASSED / FAILED
-
-## 测试用例
-(执行的测试)
-
-## 测试输出
-(实际输出)
-
-## 问题列表
-(发现的问题，如果没有则为空)
-
-## 结论
-(最终判断)"""
-
-    def get_system_prompt(self) -> str:
-        return self.SYSTEM_PROMPT
+    def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
+        if not input_data:
+            return "Input data is required"
+        return None
 
     def _run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        implementation = input_data.get("implementation", "")
-        tasks = input_data.get("tasks", "")
-        run_actual_tests = input_data.get("run_tests", False)
-
-        test_results = ""
-
-        # Optionally run actual tests
-        if run_actual_tests:
-            result = self.commands.run_tests()
-            test_results = f"\n实际测试结果：\n{result.stdout}\n{result.stderr}"
-
-        user_message = f"验证以下实现：\n\n任务：\n{tasks}\n\n实现：\n{implementation}{test_results}"
-
-        messages = [
-            {"role": "system", "content": self.get_system_prompt()},
-            {"role": "user", "content": user_message}
-        ]
-
-        test_output = self.chat(messages)
-        passed = "PASSED" in test_output.upper()
-
-        return {
-            "test_output": test_output,
-            "passed": passed
+        result = {
+            "section": self.section,
+            "verdict": "PASSED",
+            "checks": [],
+            "evidence": [],
+            "action": "CONTINUE"
         }
 
+        test_output = input_data.get("test_output", "")
+        implementation = input_data.get("implementation", "")
 
-def create_tester_agent(project_root: str = ".", llm_client: Optional[LLMClient] = None) -> TesterAgent:
-    return TesterAgent(project_root=project_root, llm_client=llm_client)
+        # Check 1: Test output exists
+        if test_output:
+            result["checks"].append({"name": "test_output_exists", "status": "PASS"})
+        else:
+            result["checks"].append({"name": "test_output_exists", "status": "WARNING"})
+            result["evidence"].append("No test output provided")
+
+        # Check 2: Verdict extraction
+        test_upper = test_output.upper() if test_output else ""
+        if "FAILED" in test_upper:
+            result["verdict"] = "FAILED"
+            result["action"] = "STOP"
+        elif "PASSED" in test_upper:
+            result["verdict"] = "PASSED"
+
+        # Check 3: Constitutional rule R002 - require test evidence
+        if not test_output and implementation:
+            result["checks"].append({
+                "name": "test_evidence_required",
+                "status": "WARNING",
+                "note": "R002: Test evidence recommended for implementations"
+            })
+
+        return result
+
+
+def create_tester_agent(project_root: str = ".") -> TesterAgent:
+    return TesterAgent(project_root=project_root)
 
 
 __all__ = ["TesterAgent", "create_tester_agent"]

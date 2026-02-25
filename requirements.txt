@@ -20,4 +20,3 @@ httpx>=0.25.0
 #SW|tenacity>=8.2.0
 #TQ|toml>=0.10.2
 
-zhipuai>=2.0.0
