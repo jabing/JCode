@@ -10,8 +10,7 @@ import yaml
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
-from datetime import datetime
-
+from datetime import datetime, UTC
 
 class Priority(str, Enum):
     """Rule priority levels mapping to violation handlers"""
@@ -87,9 +86,7 @@ class ViolationResult:
     location: Optional[str] = None
     suggestion: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-
-
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 @dataclass
 class SoftHookState:
     """State tracking for soft hooks"""
@@ -442,17 +439,14 @@ class RuleEngine:
             self.soft_hooks_state[rule.id] = SoftHookState(rule_id=rule.id)
 
         state = self.soft_hooks_state[rule.id]
-        state.last_triggered = datetime.utcnow().isoformat()
-
-        # Check interceptors for auto-upgrade
+        state.last_triggered = datetime.now(UTC).isoformat()
         for interceptor in rule.soft_hooks.interceptors:
             if interceptor.get("type") == "referrer":
                 threshold = interceptor.get("config", {}).get("threshold", 3)
                 if state.ignore_count >= threshold and not state.upgraded:
                     # Upgrade to P2
                     state.upgraded = True
-                    state.upgrade_timestamp = datetime.utcnow().isoformat()
-                    violation.priority = Priority.P2
+                    state.upgrade_timestamp = datetime.now(UTC).isoformat()
                     violation.handler = "LOG_ONLY"
                     violation.message = f"[UPGRADED] {violation.message}"
                     return

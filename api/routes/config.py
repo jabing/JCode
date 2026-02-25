@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from typing import Optional, Dict, Any
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from core.switch_manager import SwitchManager
@@ -76,7 +76,7 @@ class ErrorResponse(BaseModel):
 
 def get_timestamp() -> str:
     """Get current ISO 8601 timestamp"""
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(UTC).isoformat() + "Z"
 
 
 def get_full_config(switch_manager: SwitchManager) -> ConfigResponse:

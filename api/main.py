@@ -6,7 +6,7 @@ This module provides the main FastAPI application with all routes,
 middleware, exception handlers, and configuration.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -44,7 +44,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "error_type": "HTTPException",
             "message": exc.detail,
             "action": "Check request parameters and try again",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     )
 
@@ -58,7 +58,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
             "error_type": type(exc).__name__,
             "message": str(exc) if str(exc) else "An unexpected error occurred",
             "action": "Contact system administrator or check logs",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     )
 
@@ -74,7 +74,7 @@ async def health_check():
     return {
         "status": "healthy",
         "version": "3.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "integration": "opencode-superpowers",
         "agents": ["analyst", "planner", "implementer", "reviewer", "tester", "conductor"]
     }

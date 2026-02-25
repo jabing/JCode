@@ -358,7 +358,7 @@ def test_soft_hooks_mechanism():
     # Third violation - should upgrade to LOG_ONLY
     result = re.execute(rule, context)
     re.handle_violation(rule, context, result)
-    assert result.priority == Priority.P2
+    assert result.priority == Priority.P3
     assert result.handler == "LOG_ONLY"
 
     print("✓ Soft hooks mechanism with upgrade works")

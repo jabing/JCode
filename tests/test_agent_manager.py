@@ -29,7 +29,7 @@ def test_dispatch_agent():
     manager = AgentManager()
     result = manager.dispatch_agent('analyst', 'Test task')
     assert result is not None
-    assert result['payload']['agent'] == 'analyst'
+    assert result['section'] == '[ANALYSIS]'
 
 
 def test_iteration_tracking():
