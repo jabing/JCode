@@ -32,61 +32,77 @@ Write-Info "Installing JCode to: $JCodePath"
 New-Item -ItemType Directory -Path "$GlobalOpenCodeDir\skills\jcode-governance" -Force | Out-Null
 Write-Success "Created .opencode directory"
 
-# Create opencode.jsonc
-$ConfigContent = @"
-{
-  "`$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "opencode": {
-      "options": {}
-    }
-  },
-  "mcp": {},
-  "tools": {
-    "jcode": true
-  },
-  "skills": {
-    "jcode-governance": true
-  }
-}
-"@
-$ConfigContent | Out-File -FilePath "$GlobalOpenCodeDir\opencode.jsonc" -Encoding utf8NoBOM
-Write-Success "Created opencode.jsonc"
+# Create opencode.jsonc using Python (avoids encoding issues)
+$PythonScript = @'
+import json
+import os
 
-# Create JCode skill
-$SkillContent = @"
----
+config_path = os.path.expanduser("~/.opencode/opencode.jsonc")
+config = {
+    "$schema": "https://opencode.ai/config.json",
+    "provider": {"opencode": {"options": {}}},
+    "mcp": {},
+    "tools": {"jcode": True},
+    "skills": {"jcode-governance": True}
+}
+with open(config_path, "w", encoding="utf-8", newline="\n") as f:
+    json.dump(config, f, indent=2)
+print("OK")
+'@
+
+$Result = python -c $PythonScript 2>&1
+if ($Result -eq "OK") {
+    Write-Success "Created opencode.jsonc"
+} else {
+    Write-Err "Failed to create config: $Result"
+    exit 1
+}
+
+# Create JCode skill using Python
+$SkillScript = @'
+import os
+
+skill_path = os.path.expanduser("~/.opencode/skills/jcode-governance/SKILL.md")
+skill_content = """---
 name: jcode-governance
-description: "JCode 代码治理层 - 6个 Agent 工作流验证。触发词: 'jcode', 'code governance', '代码治理', 'governance check', 'code review', 'code analysis'"
+description: "JCode 代码治理层 - 6个 Agent 工作流验证"
 ---
 
 # JCode Governance Layer
 
 <role>
-You are a JCode governance orchestrator. JCode provides 6 agent tools for code governance:
+You are a JCode governance orchestrator. JCode provides 6 agent tools:
 - jcode.analyze - 问题分析验证
 - jcode.plan - 任务规划验证  
 - jcode.implement - 代码实现验证
 - jcode.review - 代码审查 (APPROVED/REJECTED)
 - jcode.test - 测试验证 (PASSED/FAILED)
 - jcode.conductor - 终局裁决
-
-When governance is enabled, use these tools to validate code changes before proceeding.
 </role>
 
 ## TRIGGERS
-- "jcode"
-- "code governance"
-- "代码治理"
-- "governance check"
+- jcode
+- code governance
+- 代码治理
+- governance check
 
 ## USAGE
 Invoke JCode tools via:
-- CLI: python $JCodePath\jcode_start.py cli {command}
+- CLI: python jcode_start.py cli {command}
 - API: http://localhost:8000/api/v1/jcode/{agent}
-"@
-$SkillContent | Out-File -FilePath "$GlobalOpenCodeDir\skills\jcode-governance\SKILL.md" -Encoding utf8NoBOM
-Write-Success "Created JCode skill"
+"""
+with open(skill_path, "w", encoding="utf-8", newline="\n") as f:
+    f.write(skill_content)
+print("OK")
+'@
+
+$Result = python -c $SkillScript 2>&1
+if ($Result -eq "OK") {
+    Write-Success "Created JCode skill"
+} else {
+    Write-Err "Failed to create skill: $Result"
+    exit 1
+}
 
 # Set environment variables
 [Environment]::SetEnvironmentVariable("JCODE_PATH", $JCodePath, "User")
@@ -108,4 +124,4 @@ Write-Host "Skill: jcode-governance" -ForegroundColor Cyan
 Write-Host "Triggers: 'jcode', 'code governance', '代码治理'" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Restart your terminal, then run 'opencode'" -ForegroundColor White
-Write-Host "Use: '请使用 jcode 分析这个问题'" -ForegroundColor White
+Write-Host "Use: 'jcode 分析这个问题'" -ForegroundColor White
