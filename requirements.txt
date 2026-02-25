@@ -19,3 +19,5 @@ httpx>=0.25.0
 #ZX|mypy>=1.7.1
 #SW|tenacity>=8.2.0
 #TQ|toml>=0.10.2
+
+zhipuai>=2.0.0

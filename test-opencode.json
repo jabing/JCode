@@ -1,0 +1,9 @@
+{
+  "model": "anthropic/claude-sonnet-4-5",
+  "command": {
+    "ecc-test": {
+      "description": "ECC Test Command",
+      "template": "ECC TEST: $ARGUMENTS"
+    }
+  }
+}
