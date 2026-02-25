@@ -33,20 +33,37 @@ Write-Info "Installing JCode to: $JCodePath"
 New-Item -ItemType Directory -Path "$GlobalOpenCodeDir\skills\jcode-governance" -Force | Out-Null
 Write-Success "Created .opencode directory"
 
-# Create opencode.jsonc
-@"
-{
-  "`$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "jcode": {
-      "command": "python",
-      "args": ["$JCodeMcpServer"],
-      "enabled": true
+# Create opencode.jsonc using Python for proper JSON escaping
+$PythonScript = @"
+import json
+import os
+
+config_path = os.path.expanduser('~/.opencode/opencode.jsonc')
+
+config = {
+    '\$schema': 'https://opencode.ai/config.json',
+    'mcp': {
+        'jcode': {
+            'command': 'python',
+            'args': [r'$JCodeMcpServer'.replace('/', os.sep)],
+            'enabled': True
+        }
     }
-  }
 }
-"@ | Out-File -FilePath "$GlobalOpenCodeDir\opencode.jsonc" -Encoding UTF8
-Write-Success "Created opencode.jsonc"
+
+content = json.dumps(config, indent=2)
+with open(config_path, 'w', encoding='utf-8', newline='\n') as f:
+    f.write(content)
+print('OK')
+"@
+
+$Result = python -c $PythonScript 2>&1
+if ($Result -eq "OK") {
+    Write-Success "Created opencode.jsonc (valid JSON)"
+} else {
+    Write-Err "Failed to create config: $Result"
+    exit 1
+}
 
 # Set environment variables
 [Environment]::SetEnvironmentVariable("JCODE_PATH", $JCodePath, "User")
@@ -64,5 +81,6 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "JCode Installed Successfully!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
+Write-Host "Config file: $GlobalOpenCodeDir\opencode.jsonc" -ForegroundColor Cyan
 Write-Host "Restart your terminal, then run 'opencode'" -ForegroundColor Cyan
 Write-Host "JCode tools will be available automatically" -ForegroundColor Cyan
