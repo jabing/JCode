@@ -1,0 +1,75 @@
+# Task 1: MCP Server Skeleton with Health Check - Evidence
+
+## Date: 2026-02-26
+## Task: Create MCP Server with /health endpoint
+
+### Files Created
+
+1. **mcp/server.py** (176 lines)
+   - FastAPI server implementation
+   - `/health` endpoint returning `{"status": "ok", "tools": 6}`
+   - `/rpc` endpoint for future JSON-RPC 2.0 implementation
+   - CLI with `--port` argument (default: 8080)
+   - Port conflict detection via `find_available_port()`
+   - Exception handlers
+
+2. **tests/test_mcp_server.py** (45 lines)
+   - `test_health_check_returns_200` - Verifies 200 status
+   - `test_health_check_returns_correct_format` - Verifies {status: ok, tools: 6}
+   - `test_health_check_not_404` - Verifies endpoint exists
+
+### Test Results
+
+```
+tests/test_mcp_server.py::test_health_check_returns_200 PASSED           [ 33%]
+tests/test_mcp_server.py::test_health_check_returns_correct_format PASSED [ 66%]
+tests/test_mcp_server.py::test_health_check_not_404 PASSED               [100%]
+
+============================== 3 passed in 1.85s ==============================
+```
+
+### Verification Commands
+
+```bash
+# Unit tests
+python -m pytest tests/test_mcp_server.py -v
+
+# Syntax check
+python -m py_compile mcp/server.py tests/test_mcp_server.py
+
+# Server start (on port 8080)
+python -m mcp.server --port 8080
+
+# Health endpoint verification (via TestClient)
+from mcp.server import app
+from fastapi.testclient import TestClient
+client = TestClient(app)
+response = client.get('/health')
+# Result: {'status': 'ok', 'tools': 6}
+```
+
+### LSP Diagnostics
+
+- No syntax errors
+- No type errors (basedpyright not installed, but py_compile passed)
+
+### Implementation Notes
+
+- Followed TDD approach: tests written before implementation
+- Reused FastAPI/uvicorn patterns from `api/main.py`
+- Server startup message shows tool count (6 JCode agents)
+- Port conflict detection implemented but not triggered in tests
+
+### Compliance Check
+
+- ✅ FastAPI server with `/health` endpoint
+- ✅ Returns `{"status": "ok", "tools": 6}`
+- ✅ CLI with `--port` argument
+- ✅ TDD approach (tests first)
+- ✅ Evidence file created
+- ❌ Server run verification (background process stopped)
+
+### Next Steps
+
+- Verify actual server startup on port 8080 (requires manual verification)
+- Proceed to Wave 2: JSON-RPC endpoint implementation

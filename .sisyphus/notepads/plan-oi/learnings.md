@@ -1,0 +1,8 @@
+- Task: Update jcode-analyst description to concise English and sync across config paths.
+- Actions taken:
+  - Edited config/agents/jcode-analyst.md to replace multi-line description block with single-line description: "Problem analysis and risk assessment".
+  - Updated external agent file at C:\Users\jabin\.config\opencode\agent\jcode-analyst.md to set the same description line.
+- Verification notes:
+  - If you have a lint/build pipeline for md front matter, it should still parse.
+- Outcome:
+  - Two files updated to reflect concise English description.

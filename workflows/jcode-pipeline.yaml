@@ -1,0 +1,182 @@
+# JCode Agent 工作流配置
+# 定义 Analyst → Planner → Implementer → Reviewer → Tester → CONDUCTOR 流程
+
+name: jcode-governance-pipeline
+version: "3.0"
+description: JCode 6-Agent 治理工作流
+
+# 工作流参数
+parameters:
+  max_iterations: 3
+  enable_human_intervention: true
+  audit_enabled: true
+
+# 状态定义
+states:
+  - name: INIT
+    description: 初始状态，接收用户需求
+    
+  - name: ANALYSIS
+    agent: jcode-analyst
+    description: 问题分析和风险评估
+    on_success: TASKS
+    on_failure: STOP
+    
+  - name: TASKS
+    agent: jcode-planner
+    description: 任务规划和分解
+    on_success: IMPLEMENTATION
+    on_failure: STOP
+    
+  - name: IMPLEMENTATION
+    agent: jcode-implementer
+    description: 代码实现
+    on_success: REVIEW
+    on_failure: ITERATE
+    
+  - name: REVIEW
+    agent: jcode-reviewer
+    description: 代码审查
+    on_success: TEST
+    on_failure: ITERATE
+    failure_signal: REJECTED
+    
+  - name: TEST
+    agent: jcode-tester
+    description: 测试验证
+    on_success: CONDUCTOR
+    on_failure: ITERATE
+    failure_signal: FAILED
+    
+  - name: CONDUCTOR
+    agent: jcode-conductor
+    description: 终局裁决
+    transitions:
+      - condition: "review == APPROVED and test == PASSED"
+        target: DELIVER
+      - condition: "iteration < max_iterations"
+        target: ITERATE
+      - condition: "iteration >= max_iterations"
+        target: STOP
+        
+  - name: ITERATE
+    description: 迭代重试
+    action: increment_iteration
+    next: ANALYSIS
+    
+  - name: DELIVER
+    description: 交付成功
+    final: true
+    status: SUCCESS
+    
+  - name: STOP
+    description: 强制终止
+    final: true
+    status: FAILED
+
+# Agent 配置
+agents:
+  jcode-analyst:
+    role: 问题侦察官
+    persona: 司马迁
+    input:
+      - problem_statement
+      - user_requirements
+    output:
+      - section: "[ANALYSIS]"
+      - verifiability: "HARD | SOFT | NON_VERIFIABLE"
+      - risks: []
+      - constraints: []
+    rules:
+      - 只定义问题边界，不提供解决方案
+      - 判定 NON-VERIFIABLE 时必须触发 STOP
+      
+  jcode-planner:
+    role: 法令制定官
+    persona: 商鞅
+    input:
+      - analysis_result
+    output:
+      - section: "[TASKS]"
+      - tasks: []
+      - verify_by: []
+    rules:
+      - 只制定可验证任务，不描述实现步骤
+      - 每个任务必须有验证标准
+      
+  jcode-implementer:
+    role: 执行工匠
+    persona: 鲁班
+    input:
+      - tasks
+    output:
+      - section: "[IMPLEMENTATION]"
+      - code_changes: []
+      - artifacts: []
+    rules:
+      - 只执行授权任务，不擅自优化
+      - 不得越权修改任务定义
+      
+  jcode-reviewer:
+    role: 否决官
+    persona: 包拯
+    input:
+      - tasks
+      - implementation
+    output:
+      - section: "[REVIEW]"
+      - verdict: "APPROVED | REJECTED"
+      - violations: []
+    rules:
+      - 只做二元判断，不提修改建议
+      - REJECTED 必须触发 ITERATION
+      
+  jcode-tester:
+    role: 证据官
+    persona: 张衡
+    input:
+      - verify_by
+      - implementation
+    output:
+      - section: "[TEST]"
+      - verdict: "PASSED | FAILED"
+      - evidence: []
+    rules:
+      - 只提供可复现证据，不做推测
+      - FAILED 必须触发 ITERATION
+      
+  jcode-conductor:
+    role: 终局裁决
+    persona: 韩非子
+    input:
+      - review_verdict
+      - test_verdict
+      - iteration_count
+    output:
+      - section: "[FINAL]"
+      - decision: "DELIVER | ITERATE | STOP"
+    rules:
+      - 不参与内容，只裁决
+      - REVIEW=APPROVED 且 TEST=PASSED 才能 DELIVER
+      - iteration 溢出必须 STOP
+
+# 强制介入点
+intervention_points:
+  - trigger: NON_VERIFIABLE
+    action: pause_and_notify
+    require: HUMAN_ADMIN
+    
+  - trigger: ITERATION_OVERFLOW
+    action: pause_and_notify
+    require: HUMAN_ADMIN
+    
+  - trigger: STRUCTURAL_VIOLATION
+    action: immediate_stop
+    require: HUMAN_ADMIN
+
+# 审计配置
+audit:
+  enabled: true
+  log_all_transitions: true
+  log_all_verdicts: true
+  retain_iterations: true

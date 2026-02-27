@@ -1,66 +1,286 @@
-# JCode Agent Role Definitions
+# JCode Agent System - MCP-Based Governance
 
-**Generated:** 2026-02-24
-**Version:** v2.2
-**Purpose:** 6大核心代理的行为规范与职责边界定义
-
-## STRUCTURE
-
-```
-agents/
-├── analyst.md      # 司马迁 - 问题侦察官：定义问题边界，不做解决方案
-├── planner.md      # 商鞅 - 法令制定官：输出可验证任务，不描述实现
-├── implementer.md  # 鲁班 - 执行工匠：只执行授权任务，不推断意图
-├── reviewer.md     # 包拯 - 否决官：二元判断(APPROVED/REJECTED)，不给建议
-├── tester.md       # 张衡 - 证据官：提供可复现证据，不做推测
-└── (conductor)     # 裁决官定义见 governance/CONDUCTOR.md
-```
-
-## WHERE TO LOOK
-
-| Need | File | Key Section |
-|------|------|-------------|
-| 问题分析与风险评估 | analyst.md | "硬边界"、"Verifiability判定" |
-| 非功能性需求(v2.1) | analyst.md#5 | "NFR维度"、"验证标准" |
-| 任务拆解与定义 | planner.md | "任务设计模板"(TODO/Done when/Verify by) |
-| 实现行为规范 | implementer.md | "硬边界"、"Fast-Coder规则" |
-| 审查通过标准 | reviewer.md | "否决逻辑"、"REVIEW输出格式" |
-| 测试证据标准 | tester.md | "证据标准"、"TEST输出格式" |
-
-## CONVENTIONS
-
-**人格锚点设计**：每个代理绑定一个历史人物，用于约束行为而非角色扮演
-- 强调"不做某事"而非"能做某事"
-- 人格 = 行为边界的心理锚定
-
-**输入隔离原则**：
-- Implementer 只认 [TASKS]，不认 [ANALYSIS]
-- Reviewer 不认 Planner 的"原意"，只认字面任务
-- Tester 不认推测，只认可复现证据
-
-**输出格式强制**：
-- 每个代理有且只有一个 `[SECTION]` 输出
-- 禁止额外解释、建议、反思
-
-## ANTI-PATTERNS
-
-**严格禁止的代理行为**：
-- Analyst 给出解决方案或技术选型暗示
-- Planner 写伪代码或"Step by step"实现步骤
-- Implementer 顺手重构、优化、补边界情况
-- Reviewer 提供修改建议或示例代码
-- Tester 分析失败原因或给出改进建议
-
-**系统级红线**：
-- 任何代理不得跳过 REVIEW 或 TEST
-- 未经授权的实现 = 违规
-- 模糊即有罪(Reviewer)、无证据即无效(Tester)
-
-**快速修正通道**（v2.2新增）：
-- Reviewer可标记MINOR_FIX触发快速修正
-- 小问题无需全流程迭代
-- 详见 governance/QUICK_FIX_CHANNEL.md
+> **Status:** v3.0 COMPLETE  
+> **Type:** Standalone MCP Agent System  
+> **Protocol:** JSON-RPC 2.0 over HTTP (MCP Standard)  
+> **Integration:** OpenCode Agent Registry + MCP Tool Calling  
+> **Generated:** 2026-02-27
 
 ---
 
-**Next:** 查看 governance/AGENT_CONSTITUTION.md 了解宪法级约束规则
+## What Makes JCode Different
+
+JCode is **NOT** a traditional agent system. It's a **MCP-native governance layer**:
+
+- ✅ 6 specialized agents exposed as **MCP tools**
+- ✅ Communicates via **JSON-RPC 2.0** protocol
+- ✅ Discovered by OpenCode through **MCP tool discovery**
+- ✅ Each agent is a **stateless tool invocation**, not a persistent process
+- ✅ Runs on-demand via `python -m mcp.server`
+
+---
+
+## MCP Architecture
+
+### Tool Discovery
+
+OpenCode discovers JCode agents through the MCP `tools/list` method:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+Returns 6 tools:
+- `analyze` - Problem analysis and risk assessment
+- `plan` - Task decomposition and planning  
+- `implement` - Code implementation
+- `review` - Code review (APPROVED/REJECTED)
+- `test` - Test verification (PASSED/FAILED)
+- `conductor` - Final arbitration (DELIVER/ITERATE/STOP)
+
+### Tool Invocation
+
+Each agent is invoked via the MCP `tools/call` method:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "analyze",
+    "arguments": {
+      "context_lock_id": "session-123",
+      "input_data": {"problem_statement": "..."},
+      "mode": "full"
+    }
+  }
+}
+```
+
+### Response Format
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [{
+      "type": "text",
+      "text": "Analysis complete: [ANALYSIS]\n\nVerifiability: HARD\nAction: CONTINUE"
+    }]
+  }
+}
+```
+
+---
+
+## 6 MCP Tools = 6 Agents
+
+| MCP Tool | Agent Name | Role | Output |
+|----------|------------|------|--------|
+| `analyze` | @jcode-analyst | 问题侦察官 (司马迁) | Analysis + Risk assessment |
+| `plan` | @jcode-planner | 法令制定官 (商鞅) | Verifiable task list |
+| `implement` | @jcode-implementer | 执行工匠 (鲁班) | Code changes |
+| `review` | @jcode-reviewer | 否决官 (包拯) | APPROVED / REJECTED |
+| `test` | @jcode-tester | 证据官 (张衡) | PASSED / FAILED |
+| `conductor` | @jcode-conductor | 终局裁决 (韩非子) | DELIVER / ITERATE / STOP |
+
+### Primary Agent (@jcode)
+
+The `@jcode` agent is a **workflow orchestrator** that internally chains the 6 MCP tool calls:
+
+```
+User Request
+    ↓
+@jcode (Orchestrator)
+    ↓
+tools/call analyze → tools/call plan → tools/call implement
+    ↓
+tools/call review → tools/call test → tools/call conductor
+    ↓
+Final Result
+```
+
+---
+
+## MCP Server
+
+### Start the Server
+
+```bash
+python -m mcp.server --port 8080
+```
+
+### Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Health check + tool count |
+| `POST /mcp` | JSON-RPC 2.0 endpoint for tool discovery and invocation |
+
+### Configuration
+
+The MCP server is registered in OpenCode via `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "jcode": {
+      "type": "local",
+      "command": ["python", "-m", "mcp.server", "--port", "8080"],
+      "environment": {
+        "PYTHONPATH": "/path/to/jcode"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+---
+
+## Agent Workflow (MCP Chain)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User: @jcode 实现一个用户登录功能                              │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  @jcode (Primary Agent)                                      │
+│  └─ Calls: POST /mcp {method: "tools/call", params: {name: "analyze"}} │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  MCP Server → AnalystAgent.execute()                         │
+│  Returns: {verifiability: "HARD", action: "CONTINUE"}         │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  @jcode calls: tools/call plan → PlannerAgent                │
+│  Returns: {tasks: [...], action: "CONTINUE"}                  │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+            [ ... continues through all 6 tools ... ]
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Final: tools/call conductor → ConductorAgent                │
+│  Returns: {decision: "DELIVER"}                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## File Structure
+
+```
+jcode/
+├── mcp/
+│   ├── server.py              # MCP HTTP server (FastAPI + JSON-RPC 2.0)
+│   └── jcode_server.py        # Tool definitions and discovery
+├── core/agents/               # Agent implementations (called by MCP server)
+│   ├── analyst.py             # analyze tool implementation
+│   ├── planner.py             # plan tool implementation
+│   ├── implementer.py         # implement tool implementation
+│   ├── reviewer.py            # review tool implementation
+│   ├── tester.py              # test tool implementation
+│   └── conductor.py           # conductor tool implementation
+├── config/agents/             # OpenCode Agent configurations
+│   ├── jcode.md               # Primary orchestrator agent
+│   ├── jcode-analyst.md       # Subagent: calls MCP analyze tool
+│   ├── jcode-planner.md       # Subagent: calls MCP plan tool
+│   ├── jcode-implementer.md   # Subagent: calls MCP implement tool
+│   ├── jcode-reviewer.md      # Subagent: calls MCP review tool
+│   ├── jcode-tester.md        # Subagent: calls MCP test tool
+│   └── jcode-conductor.md     # Subagent: calls MCP conductor tool
+├── skills/jcode-mcp/
+│   └── SKILL.md               # OpenCode SKILL registration (MCP endpoint)
+├── install.py                 # One-click installation
+└── agents/
+    └── AGENTS.md              # This file
+```
+
+---
+
+## Usage
+
+### Full Workflow (via @jcode)
+
+```
+@jcode 实现一个用户登录功能，支持邮箱和手机号验证
+```
+
+JCode automatically chains 6 MCP tool calls:
+1. `analyze` - Analyze requirements
+2. `plan` - Create verifiable tasks
+3. `implement` - Write code
+4. `review` - Code review
+5. `test` - Run tests
+6. `conductor` - Make final decision
+
+### Individual Tool Calls
+
+You can also call individual MCP tools directly:
+
+```
+/jcode-mcp analyze "评估这个需求的可行性"
+/jcode-mcp review "审查这段代码"
+/jcode-mcp test "运行测试"
+```
+
+Or use the agent shortcuts:
+
+```
+@jcode-analyst 分析这个需求的复杂度
+@jcode-reviewer 检查这段代码的质量
+```
+
+---
+
+## Why MCP?
+
+1. **Standard Protocol** - Uses industry-standard JSON-RPC 2.0
+2. **Tool Discovery** - OpenCode auto-discovers available tools
+3. **Stateless** - Each invocation is independent, no process management
+4. **Composable** - Agents can be called individually or chained
+5. **Language Agnostic** - Could be implemented in any language
+
+---
+
+## Installation
+
+```bash
+cd jcode
+python install.py --global
+```
+
+This installs:
+- 7 Agent configs to `~/.config/opencode/agent/`
+- MCP server registration to `~/.config/opencode/opencode.json`
+
+---
+
+## History
+
+### v3.0 (Current)
+- ✅ **MCP-native architecture** - 6 agents as MCP tools
+- ✅ **JSON-RPC 2.0 protocol** - Standard MCP communication
+- ✅ **Standalone system** - No OMO dependency
+- ✅ **@jcode Primary Agent** - Workflow orchestration
+- ✅ **One-click installation**
+
+### v2.x
+- Design phase, OMO-dependent
+
+### v1.x
+- Prototype phase
+
+---
+
+**JCode: MCP-native governance for OpenCode.**

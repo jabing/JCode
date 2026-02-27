@@ -62,13 +62,12 @@ def show_status():
     except Exception as e:
         print(f"  Error reading config: {e}")
     
-    # Check agents
+    # Check agents - direct list (import removed)
     try:
-        from core.agent_manager import AgentManager
-        am = AgentManager()
-        print(f"\nAgents: {', '.join(am.list_agents())}")
+        agents = ["analyst", "planner", "implementer", "reviewer", "tester", "conductor"]
+        print(f"\nAgents: {', '.join(agents)}")
     except Exception as e:
-        print(f"  Error loading agents: {e}")
+        print(f"  Error listing agents: {e}")
     
     # Check API
     print(f"\nAPI Endpoints:")

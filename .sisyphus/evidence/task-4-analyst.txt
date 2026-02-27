@@ -1,0 +1,155 @@
+# Task 4: Wire Analyst Tool to MCP - Evidence
+
+**Date:** 2026-02-26  
+**Task:** Wire Analyst Tool to MCP  
+**Status:** ✅ COMPLETE
+
+---
+
+## Verification Results
+
+### 1. Implementation Status
+The `jcode-analyst` tool is already wired in `mcp/server.py`:
+- Location: Lines 259-342 in the `tools/call` handler
+- Import: `from core.agents import AnalystAgent`
+- Execution: `agent.execute(input_data)` with proper context
+- Result format: MCP compatible with `content` array
+
+### 2. Test Results
+All 19 tests passed (including 4 analyst-specific tests):
+
+```
+tests/test_mcp_server.py::test_tools_call_analyst_valid_request PASSED
+tests/test_mcp_server.py::test_tools_call_analyst_missing_context_lock PASSED
+tests/test_mcp_server.py::test_tools_call_analyst_missing_input_data PASSED
+tests/test_mcp_server.py::test_tools_call_analyst_returns_valid_structure PASSED
+```
+
+### 3. MCP Protocol Compliance
+**Test Case: Valid Analyst Request**
+```json
+Request:
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "jcode-analyst",
+    "arguments": {
+      "context_lock_id": "test-lock-123",
+      "input_data": {"problem_statement": "Test problem"},
+      "mode": "full"
+    }
+  }
+}
+
+Response:
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Analysis complete: [ANALYSIS]\n\nVerifiability: HARD\nAction: CONTINUE\nChecks: 1\nWarnings: 0"
+      }
+    ]
+  }
+}
+```
+
+### 4. Validation Checked
+- ✅ Input_data validation returns proper error when missing
+- ✅ Missing context_lock_id handled gracefully
+- ✅ MCP result format: `content[0].text` structure verified
+- ✅ JSON-RPC 2.0 specification compliance
+
+### 5. Agent Logic Integrity
+The AnalystAgent implementation was NOT modified:
+- `core/agents/analyst.py` unchanged
+- Governance logic preserved
+- Audit logging intact
+
+---
+
+## Acceptance Criteria Status
+
+| Criteria | Status |
+|----------|--------|
+| `tools/call` with name="jcode-analyst" returns valid result | ✅ PASS |
+| Analyst logic unchanged (regression test passes) | ✅ PASS |
+| Return result in MCP format (content array with text) | ✅ PASS |
+| All tests pass | ✅ PASS (19/19) |
+
+---
+
+## Files Reviewed
+
+- `mcp/server.py` - Lines 259-342 (Analyst handler)
+- `core/agents/analyst.py` - AnalystAgent implementation
+- `tests/test_mcp_server.py` - 19 tests including 4 analyst-specific
+
+---
+
+## Evidence Generated
+
+- Test log: `/sisyphus/evidence/` - All tests pass
+- Evidence file: This file
+
+---
+
+**Conclusion:** Task 4 is complete. The jcode-analyst tool is properly wired to the MCP server.
+
+---
+
+## Additional Implementation Notes (2026-02-26)
+
+### Changes Made
+
+1. **mcp/server.py** (Lines 251-347)
+   - Replaced placeholder tools/call handler with full implementation
+   - Added jcode-analyst tool handling
+   - Implemented proper error responses (-32602 for InvalidParams, -32603 for InternalError)
+   - Returns MCP-compatible result with content array
+
+2. **tests/test_mcp_server.py**
+   - Added 4 comprehensive test cases for jcode-analyst
+   - Tests cover valid request, missing parameters, and result structure
+   - All 4 tests pass successfully
+
+### Test Execution Output
+
+```
+$ pytest tests/test_mcp_server.py -k analyst -v
+
+=== 4 passed in 0.50s ===
+✓ test_tools_call_analyst_valid_request
+✓ test_tools_call_analyst_missing_context_lock  
+✓ test_tools_call_analyst_missing_input_data
+✓ test_tools_call_analyst_returns_valid_structure
+```
+
+### MCP Response Format Verified
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [{
+      "type": "text",
+      "text": "Analysis complete: [ANALYSIS]\n\nVerifiability: HARD\nAction: CONTINUE\nChecks: 1\nWarnings: 0"
+    }]
+  }
+}
+```
+
+### Key Implementation Decisions
+
+1. **Parameter validation**: input_data is required; context_lock_id and mode are optional
+2. **Error handling**: Returns semantic JSON-RPC error codes for different failure modes
+3. **Result format**: Follows MCP spec with `content` array containing text objects
+
+---
+
+✅ Task 4: Wire Analyst Tool to MCP - COMPLETE

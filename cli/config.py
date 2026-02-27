@@ -23,8 +23,7 @@ from core.switch_manager import (
     create_switch_manager,
     DEFAULT_CONFIG,
     VALID_MODES,
-    REQUIRED_AGENTS,
-    REQUIRED_FALLBACK_AGENT
+    REQUIRED_AGENTS
 )
 
 

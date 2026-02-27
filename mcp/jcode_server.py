@@ -12,14 +12,14 @@ class JCodeMCPServer:
     """JCode MCP Server for OMO integration."""
     
     def __init__(self):
-        from core.agent_manager import AgentManager
-        self.manager = AgentManager()
+        # Agents are now called directly from mcp/server.py
+        self.manager = None
     
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return list of available MCP tools."""
         return [
             {
-                "name": "jcode.analyze",
+                "name": "analyze",
                 "description": "JCode Analyst Agent - Validates problem analysis",
                 "inputSchema": {
                     "type": "object",
@@ -32,7 +32,7 @@ class JCodeMCPServer:
                 }
             },
             {
-                "name": "jcode.plan",
+                "name": "plan",
                 "description": "JCode Planner Agent - Validates task planning",
                 "inputSchema": {
                     "type": "object",
@@ -45,7 +45,7 @@ class JCodeMCPServer:
                 }
             },
             {
-                "name": "jcode.implement",
+                "name": "implement",
                 "description": "JCode Implementer Agent - Validates code implementation",
                 "inputSchema": {
                     "type": "object",
@@ -58,7 +58,7 @@ class JCodeMCPServer:
                 }
             },
             {
-                "name": "jcode.review",
+                "name": "review",
                 "description": "JCode Reviewer Agent - Returns APPROVED/REJECTED verdict",
                 "inputSchema": {
                     "type": "object",
@@ -71,7 +71,7 @@ class JCodeMCPServer:
                 }
             },
             {
-                "name": "jcode.test",
+                "name": "test",
                 "description": "JCode Tester Agent - Returns PASSED/FAILED verdict",
                 "inputSchema": {
                     "type": "object",
@@ -84,7 +84,7 @@ class JCodeMCPServer:
                 }
             },
             {
-                "name": "jcode.conductor",
+                "name": "conductor",
                 "description": "JCode Conductor Agent - Final arbitration decision",
                 "inputSchema": {
                     "type": "object",
@@ -98,31 +98,21 @@ class JCodeMCPServer:
             }
         ]
     
-    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool call."""
-        # Map tool names to agent types
-        agent_map = {
-            "jcode.analyze": "analyst",
-            "jcode.plan": "planner",
-            "jcode.implement": "implementer",
-            "jcode.review": "reviewer",
-            "jcode.test": "tester",
-            "jcode.conductor": "conductor"
-        }
-        
-        if name not in agent_map:
-            return {"error": f"Unknown tool: {name}"}
-        
-        agent_type = agent_map[name]
-        input_data = arguments.get("input_data", {})
-        
-        result = self.manager.dispatch_agent(agent_type, input_data)
-        
+    def get_tool_list(self) -> List[Dict[str, Any]]:
+        """Return tools list compatible with MCP tools/list method."""
+        tools = self.list_tools()
         return {
-            "section": result.get("section"),
-            "payload": result.get("payload"),
-            "error": result.get("error"),
-            "action": result.get("action")
+            "tools": tools
+        }
+
+
+# For MCP protocol compatibility
+    
+    def get_tool_list(self) -> List[Dict[str, Any]]:
+        """Return tools list compatible with MCP tools/list method."""
+        tools = self.list_tools()
+        return {
+            "tools": tools
         }
 
 

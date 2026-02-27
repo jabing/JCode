@@ -11,7 +11,7 @@ Status: IMPLEMENTATION
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Optional, Callable, Union
+from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 import aiohttp

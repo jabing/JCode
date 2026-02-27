@@ -1,0 +1,94 @@
+# Task 5: Wire Planner Tool to MCP - Evidence
+
+**Date:** 2026-02-26  
+**Task:** 5. Wire Planner Tool to MCP  
+**Status:** COMPLETED
+
+## Files Created/Modified
+
+### 1. mcp/server.py (Modified)
+**Location:** `mcp/server.py`  
+**Change:** Added `jcode-planner` tool handler in `tools/call` JSON-RPC handler
+
+**Implementation:**
+- Imports `PlannerAgent` from `core.agents`
+- Extracts parameters: `context_lock_id`, `input_data`, `mode`
+- Validates required `input_data` (returns error if missing)
+- Creates and executes `PlannerAgent`
+- Returns MCP-compliant result with content array
+
+**Code Section:** Lines 343-437 (after jcode-analyst handler)
+
+### 2. tests/test_mcp_server.py (Modified)
+**Location:** `tests/test_mcp_server.py`  
+**Change:** Added 4 test functions for jcode-planner
+
+**Tests Added:**
+1. `test_tools_call_planner_valid_request` - Tests successful planner execution
+2. `test_tools_call_planner_missing_input_data` - Tests missing input_data handling
+3. `test_tools_call_planner_returns_valid_structure` - Tests MCP result format
+4. `test_tools_call_planner_missing_tasks_and_analysis` - Tests validation of required fields
+
+## Test Results
+
+```
+tests/test_mcp_server.py - 23 passed, 1 warning in 0.62s
+
+Planner-specific tests (all PASSED):
+✓ test_tools_call_planner_valid_request
+✓ test_tools_call_planner_missing_input_data  
+✓ test_tools_call_planner_returns_valid_structure
+✓ test_tools_call_planner_missing_tasks_and_analysis
+```
+
+## Verification Steps Performed
+
+1. ✅ Read `core/agents/planner.py` - PlannerAgent implementation understood
+2. ✅ Read `mcp/server.py` - Existing jcode-analyst pattern identified
+3. ✅ Wrote 4 tests first (TDD approach) - All tests fail initially
+4. ✅ Implemented jcode-planner handler - Tests pass
+5. ✅ All MCP server tests pass (23/23)
+6. ✅ LSP diagnostics checked - No errors in modified files
+7. ✅ Evidence file created - This file
+
+## Implementation Notes
+
+### Pattern Consistency
+The implementation follows the same pattern as jcode-analyst:
+- Same parameter structure: `context_lock_id`, `input_data`, `mode`
+- Same error handling: import errors and execution errors
+- Same response format: MCP result with content array containing text
+
+### Planner-Specific Behavior
+- Validates that `input_data` exists (required by parser)
+- Validates that `input_data` contains either `tasks` or `analysis`
+- Returns checks/warnings from planner execution
+- Always returns `action: "CONTINUE"` or appropriate governance decision
+
+### Key Code Pattern
+```python
+if tool_name == "jcode-planner":
+    from core.agents import PlannerAgent
+    
+    input_data = arguments.get("input_data", {})
+    if not input_data:
+        # Return error for missing input_data
+    
+    agent = PlannerAgent(project_root=".")
+    result = agent.execute(input_data)
+    
+    # Return MCP result with content array
+```
+
+## Regression Testing
+
+All original tests still pass:
+- Health check tests: ✅
+- JSON-RPC 2.0 protocol tests: ✅  
+- tools/list tests: ✅
+- jcode-analyst tests: ✅
+- jcode-planner tests: ✅
+
+## Conclusion
+
+Task 5 completed successfully. The jcode-planner tool is now wired to the MCP server and can be invoked via `tools/call` with name="jcode-planner".

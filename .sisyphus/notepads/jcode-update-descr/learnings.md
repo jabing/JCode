@@ -1,0 +1,1 @@
+- Updated description frontmatter for config/agents/jcode.md and installed copy at ~/.config/opencode/agent/jcode.md to a single-line description.

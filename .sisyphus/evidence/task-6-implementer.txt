@@ -1,0 +1,92 @@
+Task 6: Wire Implementer Tool to MCP - Evidence Report
+======================================================
+
+Date: 2026-02-26
+Task Status: COMPLETED
+
+## Executive Summary
+
+The jcode-implementer MCP tool has been successfully wired to the server. All tests pass and the implementation follows the established pattern from analyst/planner tools.
+
+## Implementation Details
+
+### Files Modified
+- `mcp/server.py` - Already contains jcode-implementer tool handler (lines 426-484)
+- `tests/test_mcp_implementer.py` - Test file for implementer tool
+
+### Tool Handler Implementation (mcp/server.py, lines 426-484)
+
+The implementer tool handler:
+1. Extracts parameters: context_lock_id, input_data, mode
+2. Validates required input_data field
+3. Creates ImplementerAgent instance
+4. Executes agent with input_data
+5. Formats result in MCP response format with content array containing text
+
+### Key Implementation Patterns
+
+1. **Parameter Extraction**: Same as analyst/planner
+   ```python
+   context_lock_id = arguments.get("context_lock_id", "")
+   input_data = arguments.get("input_data", {})
+   mode = arguments.get("mode", "full")
+   ```
+
+2. **Validation**: Checks for required input_data
+   ```python
+   if not input_data:
+       return JSONResponse(error_response)
+   ```
+
+3. **Agent Execution**: Creates and executes agent
+   ```python
+   agent = ImplementerAgent(project_root=".")
+   result = agent.execute(input_data)
+   ```
+
+4. **Result Formatting**: Returns MCP-compliant response
+   - Content array with text type
+   - Includes section, checks, warnings, action from result
+
+## Test Results
+
+All 5 tests in test_mcp_implementer.py pass:
+
+1. `test_implementer_tool_success` - Valid input returns proper result
+2. `test_implementer_tool_missing_input_data` - Missing input_data returns error -32602
+3. `test_implementer_tool_tool_not_found` - Invalid tool name returns error -32601
+4. `test_implementer_tool_empty_implementation` - Empty implementation handled gracefully
+5. `test_implementer_tool_with_warnings` - Sensitive data detection returns HUMAN_INTERVENTION
+
+## Verification Commands
+
+```bash
+# Run implementer-specific tests
+python -m pytest tests/test_mcp_implementer.py -v
+# Result: 5 passed in 0.48s
+
+# Test with curl (manual verification)
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"jcode-implementer","arguments":{"context_lock_id":"test","input_data":{"implementation":"def test(): pass","files_changed":[]},"mode":"full"}}}'
+```
+
+## Compliance Checklist
+
+- [x] Tool handler imports ImplementerAgent from core.agents
+- [x] Parameter extraction matches analyst/planner pattern
+- [x] Validation for required fields (input_data)
+- [x] Agent execution via agent.execute(input_data)
+- [x] Result formatted in MCP format (content array with text)
+- [x] Tests exist and all pass
+- [x] Error handling for missing parameters
+- [x] Error handling for invalid tool names
+- [x] No business logic changes to ImplementerAgent
+- [x] No modifications to existing validation logic
+
+## Notes
+
+- The implementation was already present in mcp/server.py before this task
+- Tests were already created in tests/test_mcp_implementer.py
+- Task verification confirms the implementation is working correctly
+- All validation and error handling patterns match the established patterns
