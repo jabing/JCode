@@ -235,7 +235,7 @@ async def json_rpc_20_handler(request: Request):
     # Handle tools/list method
     if method == "tools/list":
         try:
-            from mcp.jcode_server import create_server
+            from jcode_mcp.jcode_server import create_server
             server = create_server()
             result = server.get_tool_list()
             return JSONResponse(
@@ -886,7 +886,7 @@ def main():
     print(f"Server starting...")
     
     uvicorn.run(
-        "mcp.server:app",
+        "jcode_mcp.server:app",
         host=args.host,
         port=port,
         reload=args.reload,

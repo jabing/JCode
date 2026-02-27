@@ -1,24 +1,25 @@
-# Core dependencies
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-pydantic>=2.0.0
-pyyaml>=6.0.0
-click>=8.1.0
-typer>=0.12.0
-python-multipart>=0.0.5
-aiofiles>=23.0.0
-python-dotenv>=1.0.0
-httpx>=0.25.0
-
-# Optional: Logging
-loguru>=0.7.2
-
-# Development dependencies
-pytest>=7.4.4
-pytest-asyncio>=0.21.0
-pytest-cov>=4.1.0
-black>=23.12.0
-ruff>=0.1.11
-mypy>=1.7.1
-tenacity>=8.2.0
-toml>=0.10.2
+1#JV|# Core dependencies
+2#PM|fastapi>=0.104.0
+3#SR|uvicorn[standard]>=0.24.0
+4#YV|pydantic>=2.0.0
+5#MQ|pyyaml>=6.0.0
+6#JJ|click>=8.1.0
+7#KP|typer>=0.12.0
+8#KZ|python-multipart>=0.0.5
+9#MX|aiofiles>=23.0.0
+10#SB|python-dotenv>=1.0.0
+11#XM|httpx>=0.25.0
+12#TR|trio>=0.27.0
+13#TX|
+14#SS|# Optional: Logging
+15#VZ|loguru>=0.7.2
+16#RJ|
+17#BK|# Development dependencies
+18#WR|pytest>=7.4.4
+19#NK|pytest-asyncio>=0.21.0
+20#PV|pytest-cov>=4.1.0
+21#SN|black>=23.12.0
+22#RW|ruff>=0.1.11
+23#TT|mypy>=1.7.1
+24#ZW|tenacity>=8.2.0
+25#WM|toml>=0.10.2
